@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign in - Axum Chat</title>
+    <style>
+        body { font-family: sans-serif; max-width: 380px; margin: 80px auto; padding: 0 20px; background: #0989c9; }
+        form { display: grid; gap: 12px; padding: 24px; background: white; border-radius: 8px; }
+        input, button { box-sizing: border-box; padding: 10px; font-size: 1rem; }
+        button { cursor: pointer; }
+        #error { min-height: 1.2em; color: #b00020; }
+    </style>
+</head>
+<body>
+    <form id="login-form">
+        <h2>Sign in to chat</h2>
+        <input name="username" placeholder="Username" autocomplete="username" required>
+        <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+        <button type="submit">Sign in</button>
+        <button type="register" onclick="window.location.href = '/register'">Register</button>
+        <button type="delete" onclick="window.location.href = '/delete'">Delete Account</button>
+        <div id="error" role="alert"></div>
+    </form>
+    <script>
+        const form = document.getElementById("login-form");
+        const error = document.getElementById("error");
+        const buttons = form.getElementsByTagName("button");
+        const inputs = form.getElementsByTagName("input");
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            error.textContent = "";
+            const response = await fetch("/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(Object.fromEntries(new FormData(form)))
+            });
+            if (response.ok) {
+                window.location.href = "/chat";
+            } else {
+                error.textContent = response.status === 401
+                    ? "Invalid username or password."
+                    : "Unable to sign in. Please try again.";
+            }
+        });
+        buttons.addEventListener('click', () => {
+            for (let i = 0; i < inputs.length; i++) {
+                inputs[i].value = ''; // Sets the value to empty
+            }
+        });
+    </script>
+</body>
+</html>
