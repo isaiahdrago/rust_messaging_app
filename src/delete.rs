@@ -25,8 +25,8 @@ pub(crate) async fn delete_handler(
         return Err(StatusCode::BAD_REQUEST);
     
     }
-    let row: Option<sqlx::sqlite::SqliteRow> = sqlx::query(
-        "SELECT password_hash FROM users WHERE username = ?"
+    let row: Option<sqlx::postgres::PgRow> = sqlx::query(
+        "SELECT password_hash FROM users WHERE username = $1"
     )
     .bind(&payload.username)
     .fetch_optional(&app_state.db)
@@ -48,12 +48,12 @@ pub(crate) async fn delete_handler(
 
     if is_valid {
         sqlx::query(
-        "DELETE FROM users WHERE username = ?"
-            )
-            .bind(&payload.username)
-            .execute(&app_state.db)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            "DELETE FROM users WHERE username = $1"
+        )
+        .bind(&payload.username)
+        .execute(&app_state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(StatusCode::OK)
     } else {

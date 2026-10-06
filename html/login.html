@@ -38,16 +38,18 @@
             if (response.ok) {
                 window.location.href = "/chat";
             } else {
+                clearInputs();
                 error.textContent = response.status === 401
                     ? "Invalid username or password."
                     : "Unable to sign in. Please try again.";
             }
         });
-        buttons.addEventListener('click', () => {
+
+        function clearInputs() {
             for (let i = 0; i < inputs.length; i++) {
                 inputs[i].value = ''; // Sets the value to empty
             }
-        });
+        };
     </script>
 </body>
 </html>

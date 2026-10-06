@@ -31,13 +31,13 @@ pub(crate) async fn register_handler(
         .to_string();
 
     sqlx::query(
-        "INSERT INTO users (username, password_hash) VALUES (?, ?)"
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2)"
     )
     .bind(&payload.username)
     .bind(&password_hash)
     .execute(&app_state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|_| StatusCode::CONFLICT)?;
 
     Ok(StatusCode::CREATED)
 }

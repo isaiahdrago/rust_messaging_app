@@ -9,15 +9,16 @@ use axum::{
     Router,
 };
 use futures_util::{SinkExt, StreamExt};
-use std::{collections::HashSet, sync::{Arc, Mutex}};
-use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::sync::broadcast;
 use uuid::Uuid;
+use std::env;
 
 pub(crate) struct AppState {
-    pub(crate) db: SqlitePool,
+    pub(crate) db: PgPool,
     tx: broadcast::Sender<String>,
-    sessions: Mutex<HashSet<Uuid>>,
+    sessions: Mutex<HashMap<Uuid, String>>,
 }
 
 #[allow(private_interfaces)]
@@ -28,17 +29,17 @@ mod delete;
 #[tokio::main]
 async fn main() {
     let (tx, _rx) = broadcast::channel(16);
-    // `chat.db` in the project was a SQL script saved with a database
-    // extension, so use a fresh SQLite database file instead.
-    let db_options = SqliteConnectOptions::new()
-        .filename("chat.sqlite3")
-        .create_if_missing(true);
-    let db = SqlitePool::connect_with(db_options).await.unwrap();
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&db_url)
+        .await
+        .expect("Failed to connect to the database");
     sqlx::migrate!("./migrations").run(&db).await.unwrap();
     let app_state = Arc::new(AppState {
         db,
         tx,
-        sessions: Mutex::new(HashSet::new()),
+        sessions: Mutex::new(HashMap::new()),
     });
     let app = Router::new()
         .route("/", get(login_page))
@@ -47,10 +48,18 @@ async fn main() {
         .route("/delete", get(delete_page).post(delete::delete_handler))
         .route("/chat", get(chat_page))
         .route("/ws", get(ws_handler))
+        .route("/healthz", get(health_check))
         .with_state(app_state);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
-    println!("Server running on ws://127.0.0.1:3000");
+    let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_owned());
+    let port = env::var("PORT").unwrap_or_else(|_| "3000".to_owned());
+    let address = format!("{host}:{port}");
+    let listener = tokio::net::TcpListener::bind(&address).await.unwrap();
+    println!("Server running on {address}");
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn health_check() -> StatusCode {
+    StatusCode::NO_CONTENT
 }
 
 async fn login_page() -> Html<&'static str> {
@@ -82,15 +91,19 @@ async fn ws_handler(
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Response {
-    if !authenticated(&headers, &app_state) {
+    let Some(username) = session_username(&headers, &app_state) else {
         return StatusCode::UNAUTHORIZED.into_response();
-    }
-    ws.on_upgrade(|socket| handle_socket(socket, app_state))
+    };
+    ws.on_upgrade(|socket| handle_socket(socket, app_state, username))
 }
 
 fn authenticated(headers: &HeaderMap, app_state: &AppState) -> bool {
+    session_username(headers, app_state).is_some()
+}
+
+fn session_username(headers: &HeaderMap, app_state: &AppState) -> Option<String> {
     let Some(cookie_header) = headers.get(header::COOKIE).and_then(|value| value.to_str().ok()) else {
-        return false;
+        return None;
     };
 
     let Some(session_id) = cookie_header
@@ -99,13 +112,13 @@ fn authenticated(headers: &HeaderMap, app_state: &AppState) -> bool {
         .find_map(|cookie| cookie.strip_prefix("session="))
         .and_then(|value| Uuid::parse_str(value).ok())
     else {
-        return false;
+        return None;
     };
 
-    app_state.sessions.lock().unwrap().contains(&session_id)
+    app_state.sessions.lock().unwrap().get(&session_id).cloned()
 }
 
-async fn handle_socket(socket: WebSocket, app_state: Arc<AppState>) {
+async fn handle_socket(socket: WebSocket, app_state: Arc<AppState>, username: String) {
     let (mut sender, mut receiver) = socket.split();
     let mut rx = app_state.tx.subscribe();
 
@@ -113,7 +126,8 @@ async fn handle_socket(socket: WebSocket, app_state: Arc<AppState>) {
     let mut send_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = receiver.next().await {
             if let Message::Text(text) = msg {
-                let _ = app_state_for_broadcast.tx.send(text.to_string());
+                let message = format!("{username}: {text}");
+                let _ = app_state_for_broadcast.tx.send(message);
             }
         }
     });

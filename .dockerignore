@@ -1,0 +1,10 @@
+.git
+.gitignore
+target
+chat.sqlite3
+*.db
+*.sqlite3
+.env
+.aws
+.codex
+.agents

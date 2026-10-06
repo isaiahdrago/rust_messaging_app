@@ -21,8 +21,8 @@ pub(crate) async fn login_handler(
     State(app_state): State<Arc<AppState>>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<(HeaderMap, StatusCode), StatusCode> {
-    let row: Option<sqlx::sqlite::SqliteRow> = sqlx::query(
-        "SELECT password_hash FROM users WHERE username = ?"
+    let row: Option<sqlx::postgres::PgRow> = sqlx::query(
+        "SELECT password_hash FROM users WHERE username = $1"
     )
     .bind(&payload.username)
     .fetch_optional(&app_state.db)
@@ -44,7 +44,11 @@ pub(crate) async fn login_handler(
 
     if is_valid {
         let session_id = Uuid::new_v4();
-        app_state.sessions.lock().unwrap().insert(session_id);
+        app_state
+            .sessions
+            .lock()
+            .unwrap()
+            .insert(session_id, payload.username.clone());
 
         let mut headers = HeaderMap::new();
         let cookie = format!("session={session_id}; HttpOnly; SameSite=Strict; Path=/");
