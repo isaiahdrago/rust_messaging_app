@@ -10,13 +10,13 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use std::{collections::HashMap, sync::{Arc, Mutex}};
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 use std::env;
 
 pub(crate) struct AppState {
-    pub(crate) db: PgPool,
+    pub(crate) db: SqlitePool,
     tx: broadcast::Sender<String>,
     sessions: Mutex<HashMap<Uuid, String>>,
 }
@@ -29,10 +29,9 @@ mod delete;
 #[tokio::main]
 async fn main() {
     let (tx, _rx) = broadcast::channel(16);
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db = PgPoolOptions::new()
+    let db = SqlitePoolOptions::new()
         .max_connections(5)
-        .connect(&db_url)
+        .connect("sqlite://chat.sqlite3")
         .await
         .expect("Failed to connect to the database");
     sqlx::migrate!("./migrations").run(&db).await.unwrap();
@@ -48,7 +47,6 @@ async fn main() {
         .route("/delete", get(delete_page).post(delete::delete_handler))
         .route("/chat", get(chat_page))
         .route("/ws", get(ws_handler))
-        .route("/healthz", get(health_check))
         .with_state(app_state);
     let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_owned());
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_owned());
@@ -56,10 +54,6 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&address).await.unwrap();
     println!("Server running on {address}");
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn health_check() -> StatusCode {
-    StatusCode::NO_CONTENT
 }
 
 async fn login_page() -> Html<&'static str> {

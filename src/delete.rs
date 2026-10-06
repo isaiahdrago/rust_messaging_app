@@ -1,13 +1,12 @@
 use axum::{
     extract::State,
-    http::{header, HeaderMap, HeaderValue, StatusCode},
+    http::StatusCode,
     response::Json,
 };
 use serde::Deserialize;
 use sqlx::Row;
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use std::sync::Arc;
-use uuid::Uuid;
 
 use crate::AppState;
 
@@ -25,8 +24,8 @@ pub(crate) async fn delete_handler(
         return Err(StatusCode::BAD_REQUEST);
     
     }
-    let row: Option<sqlx::postgres::PgRow> = sqlx::query(
-        "SELECT password_hash FROM users WHERE username = $1"
+    let row = sqlx::query(
+        "SELECT password_hash FROM users WHERE username = ?"
     )
     .bind(&payload.username)
     .fetch_optional(&app_state.db)
@@ -48,7 +47,7 @@ pub(crate) async fn delete_handler(
 
     if is_valid {
         sqlx::query(
-            "DELETE FROM users WHERE username = $1"
+            "DELETE FROM users WHERE username = ?"
         )
         .bind(&payload.username)
         .execute(&app_state.db)

@@ -21,8 +21,8 @@ pub(crate) async fn login_handler(
     State(app_state): State<Arc<AppState>>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<(HeaderMap, StatusCode), StatusCode> {
-    let row: Option<sqlx::postgres::PgRow> = sqlx::query(
-        "SELECT password_hash FROM users WHERE username = $1"
+    let row = sqlx::query(
+        "SELECT password_hash FROM users WHERE username = ?"
     )
     .bind(&payload.username)
     .fetch_optional(&app_state.db)

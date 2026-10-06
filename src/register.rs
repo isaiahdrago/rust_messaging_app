@@ -1,13 +1,11 @@
 use axum::{
     extract::State,
-    http::{header, HeaderMap, HeaderValue, StatusCode},
+    http::StatusCode,
     response::Json,
 };
 use serde::Deserialize;
-use sqlx::Row;
 use argon2::{Argon2, PasswordHasher};
 use std::sync::Arc;
-use uuid::Uuid;
 
 use crate::AppState;
 
@@ -31,7 +29,7 @@ pub(crate) async fn register_handler(
         .to_string();
 
     sqlx::query(
-        "INSERT INTO users (username, password_hash) VALUES ($1, $2)"
+        "INSERT INTO users (username, password_hash) VALUES (?, ?)"
     )
     .bind(&payload.username)
     .bind(&password_hash)
