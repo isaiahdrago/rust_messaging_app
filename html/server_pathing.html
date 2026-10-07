@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Server Pathing - Axum Chat</title>
+    <style>
+        body { font-family: sans-serif; max-width: 380px; margin: 80px auto; padding: 0 20px; background: #0989c9; 
+            background-image: url("/images/stars.gif"); background-size: cover;}
+        form { display: grid; gap: 12px; padding: 24px; background: white; border-radius: 8px; }
+        input, button { box-sizing: border-box; padding: 10px; font-size: 1rem; }
+        button { cursor: pointer; }
+        #error { min-height: 1.2em; color: #b00020; }
+    </style>
+</head>
+<body>
+    <form id="server-form">
+        <h2>Servers</h2>
+        <input name="name" placeholder="Server Name" required>
+        <input type="checkbox" id="public" name="public">
+        <label for="public">Make the Server Public?</label>
+        <button type="submit">Create Server</button>
+        <button type="button" id="enter">Enter Server</button>
+        <button type="button" onclick="window.location.href = '/delete_server'">Delete Server</button>
+        <button type="button" onclick="window.location.href = '/'">Logout</button>
+        <div id="error" role="alert"></div>
+    </form>
+    <script>
+        const form = document.getElementById("server-form");
+        const enterButton = document.getElementById("enter");
+        const error = document.getElementById("error");
+        const inputs = form.getElementsByTagName("input");
+        const publicCheckBox = document.getElementById("public");
+
+        enterButton.addEventListener("click", async () => {
+            error.textContent = "";
+            const response = await fetch("/enter-server", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: form.elements.name.value,
+                    public: publicCheckBox.checked,
+                })
+            });
+            if (response.ok) {
+                const server = await response.json();
+                window.location.href = `/servers/${server.id}`;
+            } else { 
+                clearInputs();
+                error.textContent = response.status === 404
+                    ? "Server does not exist."
+                    : "Unable to enter server. Please try again.";
+            }
+        });
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            error.textContent = "";
+            const response = await fetch("/server", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: form.elements.name.value.trim(),
+                    public: publicCheckBox.checked
+                })
+            });
+            if (response.ok) {
+                const server = await response.json();
+                window.location.href = `/servers/${server.id}`;
+            } else {
+                clearInputs();
+                error.textContent = response.status === 401
+                    ? "Invalid server id"
+                    : response.status === 409
+                    ? "Server name already exists."
+                    : "Unable to create server. Please try again.";
+            }
+        });
+
+        function clearInputs() {
+            for (let i = 0; i < inputs.length; i++) {
+                inputs[i].value = ''; // Sets the value to empty
+            }
+        };
+    </script>
+</body>
+</html>

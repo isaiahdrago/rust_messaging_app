@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <title>Axum Chat Room</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background-color: #0989c9; }
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background-color: #0989c9; 
+            background-image: url("/images/stars.gif"); background-size: cover;}
         #chat { height: 300px; border: 1px solid #0989c9; background-color: white; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
         #input-container { display: flex; gap: 10px; }
         #message { flex-grow: 1; padding: 8px; }
@@ -20,11 +21,15 @@
     <div id="chat"></div>
     <div id="Logout"> 
         <button onclick="window.location.href = '/'">Logout</button>
+        <button onclick="window.location.href = '/server_pathing'">Servers</button>
     </div>
 
     <script>
+        const serverId = window.location.pathname.split("/").pop();
+        const protocol = location.protocol === "hettps:" ? "wss" : "ws";
+
         // Connect to your Axum WebSocket server
-        const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+        const ws = new WebSocket(`${protocol}://${location.host}/ws?server_id=${serverId}`);
         const chatDiv = document.getElementById("chat");
         const messageInput = document.getElementById("message");
 

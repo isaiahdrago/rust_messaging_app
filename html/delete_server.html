@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Delete User - Axum Chat</title>
+    <title>Delete Server - Axum Chat</title>
     <style>
         body { font-family: sans-serif; max-width: 380px; margin: 80px auto; padding: 0 20px; background: #0989c9; 
             background-image: url("/images/stars.gif"); background-size: cover;}
@@ -15,11 +15,10 @@
 </head>
 <body>
     <form id="delete-form">
-        <h2>Delete Account</h2>
-        <input name="username" placeholder="Username" autocomplete="username" required>
-        <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
-        <button type="submit">Delete Account</button>
-        <button type="login" onclick="window.location.href = '/'">Login</button>
+        <h2>Delete Server</h2>
+        <input name="server" placeholder="Server Name" required>
+        <button type="submit">Delete Server</button>
+        <button type="button" onclick="window.location.href = '/server_pathing'">Servers</button>
         <div id="error" role="alert"></div>
     </form>
     <script>
@@ -31,27 +30,27 @@
             event.preventDefault();
             error.textContent = "";
 
-            const username = form.elements.username.value.trim();
+            const server = form.elements.server.value.trim();
             const confirmed = window.confirm(
-                `Are you sure you would like to delete the account "${username}"? This will delete all servers made by this account. This cannot be undone.`
+                `Are you sure you would like to delete the server "${server}"? This cannot be undone.`
             );
 
             if (!confirmed) {
                 return;
             }
 
-            const response = await fetch("/delete", {
+            const response = await fetch("/delete_server", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(Object.fromEntries(new FormData(form)))
             });
             if (response.ok) {
-                window.location.href = "/";
+                window.location.href = "/server_pathing";
             } else {
                 clearInputs();
                 error.textContent = response.status === 401
-                    ? "Invalid username or password."
-                    : "Unable to delete account. Please try again.";
+                    ? "Invalid server name."
+                    : "Unable to delete server. Please try again.";
             }
         });
 
