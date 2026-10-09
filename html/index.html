@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h2 style="color: azure;">Axum Real-Time Chat</h2>
+    <h2 style="color: azure;" id="header"></h2>
     <div id="input-container">
         <input type="text" id="message" placeholder="Type a message..." autocomplete="off">
         <button onclick="sendMessage()">Send</button>
@@ -27,6 +27,7 @@
     <script>
         const serverName = decodeURIComponent(window.location.pathname.split("/").pop());
         const protocol = location.protocol === "https:" ? "wss" : "ws";
+        document.getElementById("header").textContent = serverName + " Server Chat";
 
         // Connect to your Axum WebSocket server
         const ws = new WebSocket(`${protocol}://${location.host}/ws?server_name=${encodeURIComponent(serverName)}`);
