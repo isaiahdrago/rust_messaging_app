@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Axum Chat Room</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background-color: #0989c9; 
+        body { font-family: sans-serif; max-width: 600px; max-height: 900px; margin: 40px auto; padding: 0 20px; background-color: #0989c9; 
             background-image: url("/images/stars.gif"); background-size: cover;}
         #chat { height: 300px; border: 1px solid #0989c9; background-color: white; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
         #input-container { display: flex; gap: 10px; }
@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h2>Axum Real-Time Chat</h2>
+    <h2 style="color: azure;">Axum Real-Time Chat</h2>
     <div id="input-container">
         <input type="text" id="message" placeholder="Type a message..." autocomplete="off">
         <button onclick="sendMessage()">Send</button>
@@ -25,11 +25,11 @@
     </div>
 
     <script>
-        const serverId = window.location.pathname.split("/").pop();
+        const serverName = decodeURIComponent(window.location.pathname.split("/").pop());
         const protocol = location.protocol === "https:" ? "wss" : "ws";
 
         // Connect to your Axum WebSocket server
-        const ws = new WebSocket(`${protocol}://${location.host}/ws?server_id=${serverId}`);
+        const ws = new WebSocket(`${protocol}://${location.host}/ws?server_name=${encodeURIComponent(serverName)}`);
         const chatDiv = document.getElementById("chat");
         const messageInput = document.getElementById("message");
 

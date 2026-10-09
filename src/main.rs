@@ -15,14 +15,14 @@ use tower_http::services::ServeDir;
 pub(crate) struct AppState {
     pub(crate) db: SqlitePool,
     tx: broadcast::Sender<String>,
-    room_channels: RwLock<HashMap<i64, broadcast::Sender<String>>>,
+    room_channels: RwLock<HashMap<String, broadcast::Sender<String>>>,
     sessions: Mutex<HashMap<Uuid, String>>,
     dynamic_routes: Arc<RwLock<HashMap<String, String>>>,
 }
 
 #[derive(Deserialize)]
 pub(crate) struct WebSocketQuery {
-    pub(crate) server_id: i64,
+    pub(crate) server_name: String,
 }
 
 #[allow(private_interfaces)]
@@ -55,8 +55,9 @@ async fn main() {
         .route("/delete_server", get(delete_server_page).post(delete::delete_server_handler))
         .route("/server_pathing", get(server_page))
         .route("/server", post(server::server_handler))
+        .route("/public_servers", get(server::public_server_hander))
         .route("/enter-server", post(server::enter_server_handler))
-        .route("/servers/{id}", get(server_instance_page))
+        .route("/servers/{name}", get(server_instance_page))
         .route("/add_route", post(register_new_page))
         .route("/ws", get(ws_handler))
         .nest_service("/images", ServeDir::new("images"))
@@ -78,7 +79,7 @@ async fn server_page() -> Html<&'static str> {
 }
 
 async fn server_instance_page(
-    Path(id): Path<i64>,
+    Path(name): Path<String>,
     headers: HeaderMap,
     State(app_state): State<Arc<AppState>>,
 ) -> Response {
@@ -86,8 +87,8 @@ async fn server_instance_page(
         return Redirect::to("/").into_response();
     }
 
-    let server_exists = sqlx::query("SELECT id FROM servers WHERE id = ?")
-        .bind(id)
+    let server_exists = sqlx::query("SELECT name FROM servers WHERE name = ?")
+        .bind(&name)
         .fetch_optional(&app_state.db)
         .await
         .ok()
@@ -136,8 +137,8 @@ async fn ws_handler(
         return StatusCode::UNAUTHORIZED.into_response();
     };
     
-    let server_exists = sqlx::query("SELECT id FROM servers WHERE id = ?")
-        .bind(query.server_id)
+    let server_exists = sqlx::query("SELECT name FROM servers WHERE name = ?")
+        .bind(&query.server_name)
         .fetch_optional(&app_state.db)
         .await
         .ok()
@@ -152,7 +153,7 @@ async fn ws_handler(
         let mut rooms = app_state.room_channels.write().unwrap();
 
         rooms
-            .entry(query.server_id)
+            .entry(query.server_name)
             .or_insert_with(|| {
                 let (tx, _rx) = broadcast::channel(16);
                 tx
@@ -161,10 +162,6 @@ async fn ws_handler(
     };
 
     ws.on_upgrade(move |socket| handle_socket(socket, room_tx, username))
-}
-
-fn generate_chat_room(name: &str) {
-
 }
 
 fn authenticated(headers: &HeaderMap, app_state: &AppState) -> bool {

@@ -4,7 +4,7 @@ use axum::{
     response::Json,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use crate::{AppState};
 
@@ -16,7 +16,7 @@ pub(crate) struct CreateServerRequest {
 
 #[derive(Serialize)]
 pub(crate) struct CreateServerResponse {
-    pub(crate) id: i64,
+    pub(crate) name: String,
 }
 
 #[derive(Deserialize)]
@@ -47,7 +47,7 @@ pub(crate) async fn server_handler(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    let result = sqlx::query(
+    sqlx::query(
         "INSERT INTO servers (name, owner_id, public) VALUES (?, ?, ?)"
         )
         .bind(name)
@@ -60,7 +60,7 @@ pub(crate) async fn server_handler(
     Ok((
         StatusCode::CREATED,
         Json(CreateServerResponse {
-            id: result.last_insert_rowid(),
+            name: name.to_owned(),
         }),
     ))
 }
@@ -75,7 +75,7 @@ pub(crate) async fn enter_server_handler(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let row = sqlx::query("SELECT id FROM servers WHERE name = ?")
+    let row = sqlx::query("SELECT name FROM servers WHERE name = ?")
         .bind(name)
         .fetch_optional(&app_state.db)
         .await
@@ -86,9 +86,22 @@ pub(crate) async fn enter_server_handler(
     };
 
     use sqlx::Row;
-    let id: i64 = row
-        .try_get("id")
+    let name: String = row
+        .try_get("name")
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(CreateServerResponse { id }))
+    Ok(Json(CreateServerResponse { name }))
+}
+
+pub(crate) async fn public_server_hander(
+    State(app_state): State<Arc<AppState>>,
+) -> Result<Json<Vec<String>>, StatusCode> {
+    let servers = sqlx::query_scalar::<_, String>(
+        "SELECT name FROM servers WHERE public = 1 ORDER BY name"
+    )
+    .fetch_all(&app_state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(servers))
 }

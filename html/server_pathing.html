@@ -5,31 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Server Pathing - Axum Chat</title>
     <style>
-        body { font-family: sans-serif; max-width: 380px; margin: 80px auto; padding: 0 20px; background: #0989c9; 
+        body { font-family: sans-serif; max-width: 400px; margin: 80px auto; padding: 0 20px; background: #0989c9; 
             background-image: url("/images/stars.gif"); background-size: cover;}
-        form { display: grid; gap: 12px; padding: 24px; background: white; border-radius: 8px; }
+        form { display: grid; gap: 12px; padding: 24px; background: white; border-radius: 8px;}
         input, button { box-sizing: border-box; padding: 10px; font-size: 1rem; }
+        #container {display: flex; gap: 30px; align-items: flex-start;}
+        #server-form, #server-public-form {flex: 2;}
         button { cursor: pointer; }
         #error { min-height: 1.2em; color: #b00020; }
     </style>
 </head>
 <body>
+    <div id="container">
     <form id="server-form">
-        <h2>Servers</h2>
-        <input name="name" placeholder="Server Name" required>
-        <input type="checkbox" id="public" name="public">
-        <label for="public">Make the Server Public?</label>
-        <button type="submit">Create Server</button>
-        <button type="button" id="enter">Enter Server</button>
-        <button type="button" onclick="window.location.href = '/delete_server'">Delete Server</button>
-        <button type="button" onclick="window.location.href = '/'">Logout</button>
-        <div id="error" role="alert"></div>
+        <div id="element-1">
+            <h2>Servers</h2>
+            <input name="name" placeholder="Server Name" required>
+            <input type="checkbox" id="public" name="public">
+            <label for="public">Make the Server Public?</label>
+            <button type="submit">Create Server</button>
+            <button type="button" id="enter">Enter Server</button>
+            <button type="button" onclick="window.location.href = '/delete_server'">Delete Server</button>
+            <button type="button" onclick="window.location.href = '/'">Logout</button>
+            <div id="error" role="alert"></div>
+        </div>
     </form>
+    <form id="public-server-form">
+        <div id="element-2">
+            <h2>Public Servers</h2>
+            <div id="pub-servers"></div>
+        </div>    
+    </form>
+    </div>
     <script>
         const form = document.getElementById("server-form");
         const enterButton = document.getElementById("enter");
         const error = document.getElementById("error");
-        const inputs = form.getElementsByTagName("input");
+        const inputs = document.getElementsByTagName("input");
         const publicCheckBox = document.getElementById("public");
 
         enterButton.addEventListener("click", async () => {
@@ -44,7 +56,7 @@
             });
             if (response.ok) {
                 const server = await response.json();
-                window.location.href = `/servers/${server.id}`;
+                window.location.href = `/servers/${encodeURIComponent(server.name)}`;
             } else { 
                 clearInputs();
                 error.textContent = response.status === 404
@@ -66,7 +78,7 @@
             });
             if (response.ok) {
                 const server = await response.json();
-                window.location.href = `/servers/${server.id}`;
+                window.location.href = `/servers/${encodeURIComponent(server.name)}`;
             } else {
                 clearInputs();
                 error.textContent = response.status === 401
@@ -82,6 +94,30 @@
                 inputs[i].value = ''; // Sets the value to empty
             }
         };
+
+        async function public_server() {
+            const response = await fetch("/public_servers");
+            if (!response.ok) {
+                return;
+            }
+
+            const servers = await response.json();
+            const pubButtonContainer = document.getElementById("pub-servers");
+
+            pubButtonContainer.replaceChildren();
+
+            servers.forEach(server => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = server;
+                button.addEventListener("click", () => {
+                    window.location.href = `/servers/${encodeURIComponent(server)}`;
+                });
+                pubButtonContainer.appendChild(button);
+            });
+        }
+
+        public_server();
     </script>
 </body>
 </html>
